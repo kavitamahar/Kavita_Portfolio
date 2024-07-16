@@ -1,0 +1,215 @@
+---
+title: "Bellabeat Case Study With R"
+author: "Kavita Mahar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## About Bellabeat
+Bellabeat, a high-tech manufacturer of health-focused products for women. Bellabeat is a successful small company, but they have the potential to become a larger player in the global smart device market. Urška Sršen, cofounder and Chief Creative cer of Bellabeat, believes that analyzing smart device fitness data could help unlock new growth oppounities for the company. 
+
+## Stakeholder ask this questions ?
+1. What are some trends in smae device usage?
+2. How could these trends apply to Bellabeat customers?
+3. How could these trends help infuence Bellabeat marketing strategy?
+
+## Business Task
+Find out the possible trends for growth and recommendations for the Bellabeat marketing strategy improvement based on trends in smart device usage.
+
+## Data Source Description
+For this business task,I am going to use the FitBit Tracker data from 03/12/16 to 04/11/16. This dataset is available to download in [KAGGLE website](https://www.kaggle.com/datasets/arashnic/fitbit/data). This dataset has a public domain license for free use.The dataset includes observations on different health metrics, such as heart rates, steps count, intensities, sleep, food logs, weight, active zone minutes, and temperature. The resolution for this data varies from seconds, minutes, hours and days, depending on the metric.
+
+
+
+## Loading Packages
+```{r}
+#loading the packages 
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+## Importing data
+```{r}
+library(readr)
+Daily_Activity <- read_csv("/Users/kavita/Bellabeat_project_1/Fitabase Data 3.12.16-4.11.16/dailyActivity_merged.csv")
+
+library(readr)
+heartRate<- read_csv("/Users/kavita/Bellabeat_project_1/Fitabase Data 3.12.16-4.11.16/heartrate_seconds_merged.csv")
+#View(heartRate)
+
+intensities <- read_csv("/Users/kavita/Bellabeat_project_1/Fitabase Data 3.12.16-4.11.16/hourlyIntensities_merged.csv")
+
+calories <- read_csv("/Users/kavita/Bellabeat_project_1/Fitabase Data 3.12.16-4.11.16/minuteCaloriesNarrow_merged.csv")
+
+sleep <-read_csv("/Users/kavita/Bellabeat_project_1/Fitabase Data 3.12.16-4.11.16/minuteSleep_merged.csv")
+
+weightLogInfo_merged<- read_csv("/Users/kavita/Bellabeat_project_1/Fitabase Data 3.12.16-4.11.16/weightLogInfo_merged.csv")
+#View(weightLogInfo_merged)
+
+
+
+```
+
+
+## Preaparing of data 
+After importing the data i will check the data is imported correctly or not, for that i used glimpse(), head() and n_disntinct() function.
+I checked and found out that data is not in proper format especially the date and time column in each dataset, so i cleaned the data accordingly.
+```{}
+
+Daily_Activity$ActivityDate = as.POSIXct(Daily_Activity$ActivityDate, format="%m/%d/%Y", tz=Sys.timezone())
+Daily_Activity$date <- format(Daily_Activity$ActivityDate, format = "%m/%d/%y")
+
+
+#rename the heartRate_seconds_merged dataset
+
+heartRate$Time= as.POSIXct(heartRate$Time, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+heartRate$date <- format(heartRate$Time, format = "%m/%d/%y")
+
+head(heartRate)
+
+# intensities
+
+intensities$ActivityHour=as.POSIXct(intensities$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+intensities$time <- format(intensities$ActivityHour, format = "%H:%M:%S")
+intensities$date <- format(intensities$ActivityHour, format = "%m/%d/%y")
+# calories
+
+calories$ActivityHour=as.POSIXct(calories$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+calories$time <- format(calories$ActivityHour, format = "%H:%M:%S")
+calories$date <- format(calories$ActivityHour, format = "%m/%d/%y")
+
+# sleep
+
+sleep$date=as.POSIXct(sleep$date, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+sleep$time <- format(sleep$date, format = "%I:%M:%S %p")
+head(sleep)
+```
+
+```{r}
+#total number of people participated
+n_distinct(Daily_Activity$Id)
+n_distinct(heartRate$Id)
+n_distinct(intensities$Id)
+n_distinct(calories$Id)
+n_distinct(sleep$Id)
+n_distinct(weightLogInfo_merged)
+```
+## Exploring the Data
+
+```{r}
+# explore num of active minutes per category
+Daily_Activity %>%  select(TotalSteps,TotalDistance, 
+                         SedentaryMinutes, Calories) %>%
+  summary()
+
+Daily_Activity %>%
+  select(VeryActiveMinutes, FairlyActiveMinutes, LightlyActiveMinutes) %>%
+  summary()
+
+#calories
+calories %>% select(Calories) %>% summary()
+
+# weight
+weightLogInfo_merged %>%
+  select(WeightKg, BMI) %>%
+  summary()
+#heart
+heartRate %>% select (Time, Value) %>% summary()
+
+sleep %>% select (date,value) %>% summary()
+```
+### Some Important Trends data is telling
+* Average steps taken is 6547 which is less than the average steps taken in a day i.e. 10000 steps as per CDC report.
+* Average sedentary Minutes is 995 minutes or almost 17 hours, needs to be reduced.
+* Maximum heartate is very high need to check heartrate and if it is higher than usual needs to sends the notification. 
+* Maximum sleep value is 3 that is awaken state, need to reduce.
+
+## Visualtion of Trends
+## How many steps people are taking ?
+```{r}
+ggplot(data= Daily_Activity)+
+  geom_point(mapping = aes(x= TotalSteps, y = Calories), color= "Pink")+
+   labs(title="Total Steps VS. Calories")+ 
+    geom_smooth(mapping = aes(x= TotalSteps, y = Calories),method = "lm", se = FALSE)
+```
+
+This graph is clearly telling me that there is kind of direct perporation relation between calories and number of steps. More steps taken by person, more calories he will burn.
+But this graph is telling me that average number of total steps is less than 10,000 steps. 
+
+## Is heartrate appropriate ? 
+```{r}
+ggplot(data= heartRate)+
+  geom_bar(mapping = aes(x= Value),color="Pink") +scale_x_continuous( name="HeartRate",trans= 'log10')+
+  scale_y_continuous( name="No. Of People",trans= 'log10')+
+  labs(title="HeartRate VS. No. Of People")
+```
+
+* According to this graph, more number of people have heartrate between 60 to 100.
+* That means people are doing exercise or they may be  active.The [Centers for Disease Control and Prevention (CDC)Trusted Source](https://www.cdc.gov/physicalactivity/basics/measuring/heartrate.htm) state that the maximum heart rate during exercise should be roughly equal to 220 bpm minus the age of the person. For example, for a 50-year-old person, a maximum heart rate calculation would be 220 – 50 years = 170 bpm. 
+
+
+## At what time people are active ?
+```{r error=TRUE }
+int_new <- intensities %>%
+  group_by(time) %>%
+  drop_na() %>%
+  summarise(mean_total_int = mean(TotalIntensity))
+
+ggplot(data=int_new, aes(x=time, y=mean_total_int)) + geom_histogram(stat = "identity", fill='darkblue') +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title="Average Total Intensity vs. Time")
+```
+
+* People are more active arround 5:00 pm to 7:00 pm.
+
+
+## What is people's sleep value ?
+
+```{r error=TRUE }
+head(sleep)
+sleep_new <- sleep %>%
+  group_by(date) %>%
+  drop_na() %>%
+  summarise(mean_total_int = mean(value))
+
+ggplot(data=sleep_new)+geom_bar(mapping =  aes(x=mean_total_int))+
+  scale_y_continuous( name="No. Of People",trans= 'log10')+
+  labs(title="Sleep Value vs. No Of People") 
+```
+
+* Here Sleep value is [According to the fitabase data dictionary:](https://www.fitabase.com/media/1930/fitabasedatadictionary102320.pdf) means:1 = asleep, 2 = restless, 3 = awake].
+* There are some people who's sleep value is in between 1.5 to 3.
+
+## Conculsion
+
+* People tends to be more active at evening time of the day i.e. around 5:00pm to 7:00 pm, and they are generally doing walking.
+* The no. of steps is less than 10,000 steps, these people are involved in less intense activity to stay healthy.
+* There are people who's sleep state is either restless or awake.
+
+## Audience
+
+Our target audience is women, who want to be healthy by just walking or doing less active workouts.
+
+## Recomendation
+* In Bellabeat App need to send notification to motivate people to do workouts.
+* Should provide suggestion, how to do less intense workout at free time.
+* As the average steps is around 6000, we need to reward notification on TIME(Bellabeat product:- watch) after completion of 5000 steps, this will motivate people. 
+* Bellabeat can offer free membership of 1 day, after completing 10000 steps in a day.
+* People do have restless and awake state, bellabeat can provide the notification and how to improve sleep before the bedtime.
+
+
+Thats it guys, this is my First Project on Bellabeat. Thanks for reading, if you have any suggestion to improve this and any feedback please comment below, it wil be a great help.
+
+
+
+
+
+
+
+
